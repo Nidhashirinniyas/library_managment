@@ -9,6 +9,8 @@
   "library_member",
   "full_name",
   "from_date",
+  "customisetodate",
+  "duration",
   "to_date",
   "paid",
   "amended_from"
@@ -37,7 +39,8 @@
   {
    "fieldname": "to_date",
    "fieldtype": "Date",
-   "label": "To Date"
+   "label": "To Date",
+   "read_only_depends_on": "eval:doc.customisetodate==0"
   },
   {
    "default": "0",
@@ -54,12 +57,25 @@
    "print_hide": 1,
    "read_only": 1,
    "search_index": 1
+  },
+  {
+   "depends_on": "eval:doc.customisetodate==0",
+   "fieldname": "duration",
+   "fieldtype": "Select",
+   "label": "Duration",
+   "options": "30 days\n90 days\n180 days\n365 days"
+  },
+  {
+   "default": "0",
+   "fieldname": "customisetodate",
+   "fieldtype": "Check",
+   "label": "Customize To Date"
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2024-03-22 09:59:36.639759",
+ "modified": "2024-05-21 11:56:15.124005",
  "modified_by": "Administrator",
  "module": "Library Management",
  "name": "Library Membership",
