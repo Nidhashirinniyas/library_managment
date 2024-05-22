@@ -41,23 +41,35 @@ frappe.ui.form.on('Library Member', {
                         fieldtype: 'Link',
                         options: 'Article'
                     },
-                    {
-                        label: 'Article Name',
-                        fieldname: 'article_name',
-                        fieldtype: 'Link',
-                        options: 'Article'
-                    },
-                    {
-                        label: 'Library Member',
-                        fieldname: 'library_member',
-                        fieldtype: 'Link',
-                        options: 'Library Member'
-                    },
+                    // {
+                    //     label: 'Article Name',
+                    //     fieldname: 'article_name',
+                    //     fieldtype: 'Link',
+                    //     options: 'Article'
+                    // },
+                    // {
+                    //     label: 'Library Member',
+                    //     fieldname: 'library_member',
+                    //     fieldtype: 'Link',
+                    //     options: 'Library Member'
+                    // },
                     {
                         label: 'Type',
                         fieldname: 'type',
                         fieldtype: 'Select',
                         options: 'Issue\nReturn'
+                    },
+                    {
+                        label : 'Delay Fine',
+                        fieldname:'delay_fine',
+                        fieldtype:'Currency',
+                        depends_on: "eval:doc.type=='Return'"
+                    },
+                    {
+                        label : 'Damage',
+                        fieldname:'damage_fine',
+                        fieldtype:'Currency',
+                        depends_on: "eval:doc.type=='Return'"
                     },
                     {
                         label: 'Date Of Transaction',

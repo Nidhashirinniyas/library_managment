@@ -15,6 +15,11 @@ class LibraryMembership(Document):
         )
         if exists:
             frappe.throw("There is an active membership for this member")
+
+        # Validate if paid is checked before saving
+        if not self.paid:
+            frappe.throw("The membership cannot be given without paid.")
+
         # Calculate to_date based on selected duration (if not manually specified)
         if not self.customisetodate and self.duration:
             duration_days = int(self.duration.split()[0])  # Extracting the number of days
