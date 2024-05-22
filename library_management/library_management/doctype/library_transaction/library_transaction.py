@@ -1,5 +1,6 @@
 import frappe
 from frappe.model.document import Document
+from frappe.utils import getdate
 
 class LibraryTransaction(Document):
     def before_submit(self):
@@ -13,9 +14,10 @@ class LibraryTransaction(Document):
 
         elif self.type == "Return":
             self.validate_return()
-            article = frappe.get_doc("Article", self.article)
-            article.status = "Available"
-            article.save()
+            for row in self.get('articles'):
+                article = frappe.get_doc("Article", row.article)
+                article.status = "Available"
+                article.save()
 
     def validate_issue(self):
         self.validate_membership()
@@ -25,9 +27,48 @@ class LibraryTransaction(Document):
                 frappe.throw(f"Article {article.name} is already issued by another member")
 
     def validate_return(self):
-        article = frappe.get_doc("Article", self.article)
-        if article.status == "Available":
-            frappe.throw("Article cannot be returned without being issued first")
+        for row in self.get('articles'):
+            if not row.article:
+                frappe.throw("No article specified for return")
+
+            article = frappe.get_doc("Article", row.article)
+            if not article:
+                frappe.throw("Article not found")
+
+            if article.status != "Issued":
+                frappe.throw(f"Article {article.name} cannot be returned without being issued first")
+
+            # Check that the return date is after the issue date
+            issue_transaction = frappe.get_all("Library Transaction",
+                                               filters={
+                                                   "library_member": self.library_member,
+                                                   "article": row.article,
+                                                   "type": "Issue",
+                                                   "docstatus": 1
+                                               },
+                                               fields=["date"],
+                                               order_by="date desc",
+                                               limit=1)
+
+            if issue_transaction:
+                issue_date = getdate(issue_transaction[0].date)
+                return_date = getdate(self.date)
+                if return_date <= issue_date:
+                    frappe.throw(f"Return date for article {article.name} must be after the issue date {issue_date}")
+
+    def on_cancel(self):
+        # Revert the article status to what it was before the transaction was submitted
+        if self.type == "Issue":
+            for row in self.get('articles'):
+                article = frappe.get_doc("Article", row.article)
+                article.status = "Available"
+                article.save()
+
+        elif self.type == "Return":
+            for row in self.get('articles'):
+                article = frappe.get_doc("Article", row.article)
+                article.status = "Issued"
+                article.save()
 
     def validate_maximum_limit(self):
         max_articles = frappe.db.get_single_value("Library Settings", "max_articles")
@@ -39,7 +80,6 @@ class LibraryTransaction(Document):
         total_count = count + cur_article_count
         if total_count > max_articles:
             frappe.throw("The total count of issued articles exceeds the maximum limit")
-
 
     def validate_membership(self):
         valid_membership = frappe.db.exists(
@@ -55,41 +95,47 @@ class LibraryTransaction(Document):
             frappe.throw("The member does not have a valid membership")
 
     def before_save(self):
+        total_damage_fine = 0
+
+        # Calculate the total damage fine
         for row in self.finee:
-            if self.type == "Return":
-                self.validate_return()
+            if row.fine_type == 'Damage':
                 damage_fine = int(row.fine_amount) if row.fine_amount else 0
-                if self.total_fine:
-                    self.total_fine = self.total_fine + damage_fine
-                else:
-                    self.total_fine = damage_fine
+                total_damage_fine += damage_fine
 
-    def calc_delay_fine(self):
-        valid_delayfine = frappe.db.exists(
-            "Library Transaction",
-            {
-                "library_member": self.library_member,
-                "article": self.article,
-                "docstatus": 1,
-                "type": "Issue",
-            },
-        )
+        # Calculate the total delay fine
+        total_delay_fine = self.calculate_return_delay_fine()
 
-        if valid_delayfine:
-            issued_doc = frappe.get_last_doc("Library Transaction", filters={
-                "library_member": self.library_member,
-                "article": self.article,
-                "docstatus": 1,
-                "type": "Issue"
-            })
-            issued_date = issued_doc.date
+        # Calculate the total fine
+        self.total_fine = total_damage_fine + total_delay_fine
 
-            loan_period = frappe.db.get_single_value('Library Settings', 'loan_period')
+    def calculate_return_delay_fine(self):
+        total_delay_fine = 0
+        loan_period = frappe.db.get_single_value('Library Settings', 'loan_period')
+        single_day_fine = frappe.db.get_single_value('Library Settings', 'single_day_fine')
 
-            actual_duration = frappe.utils.date_diff(self.date, issued_date)
+        for row in self.get('articles'):
+            article = frappe.get_doc("Article", row.article)
 
-            if actual_duration > loan_period:
-                single_day_fine = frappe.db.get_single_value('Library Settings', 'single_day_fine')
-                self.delay_fine = single_day_fine * (actual_duration - loan_period)
-            else:
-                self.delay_fine = 0
+            # Find the issue transaction for this article
+            issue_transaction = frappe.get_all("Library Transaction",
+                                               filters={
+                                                   "library_member": self.library_member,
+                                                   "article": row.article,
+                                                   "type": "Issue",
+                                                   "docstatus": 1
+                                               },
+                                               fields=["date"],
+                                               order_by="date desc",
+                                               limit=1)
+
+            if issue_transaction:
+                issued_date = getdate(issue_transaction[0].date)
+                actual_duration = frappe.utils.date_diff(self.date, issued_date)
+
+                if actual_duration > loan_period:
+                    additional_days = actual_duration - loan_period
+                    delay_fine = single_day_fine * additional_days
+                    total_delay_fine += delay_fine
+
+        return total_delay_fine
