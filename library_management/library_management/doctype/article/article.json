@@ -9,6 +9,7 @@
  "field_order": [
   "article_name",
   "author",
+  "noofcopies",
   "column_break_lhmu",
   "status",
   "image",
@@ -80,6 +81,12 @@
    "fieldname": "published",
    "fieldtype": "Check",
    "label": "Published"
+  },
+  {
+   "fieldname": "noofcopies",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "No.of.copies"
   }
  ],
  "has_web_view": 1,
@@ -87,7 +94,7 @@
  "index_web_pages_for_search": 1,
  "is_published_field": "published",
  "links": [],
- "modified": "2024-03-22 12:17:28.243537",
+ "modified": "2024-05-22 14:54:17.698755",
  "modified_by": "Administrator",
  "module": "Library Management",
  "name": "Article",
