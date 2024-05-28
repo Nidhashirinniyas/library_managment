@@ -10,7 +10,9 @@
   "last_name",
   "full_name",
   "email_address",
-  "phone"
+  "phone",
+  "current_book",
+  "current_books_count"
  ],
  "fields": [
   {
@@ -41,11 +43,22 @@
    "fieldname": "phone",
    "fieldtype": "Data",
    "label": "Phone"
+  },
+  {
+   "fieldname": "current_book",
+   "fieldtype": "Table",
+   "label": "Current Book",
+   "options": "Max Books"
+  },
+  {
+   "fieldname": "current_books_count",
+   "fieldtype": "Int",
+   "label": "Current books count"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-03-21 16:43:06.754334",
+ "modified": "2024-05-27 10:44:40.010461",
  "modified_by": "Administrator",
  "module": "Library Management",
  "name": "Library Member",

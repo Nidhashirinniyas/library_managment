@@ -29,4 +29,10 @@ class LibraryMember(Document):
         doc.type = values["type"]
         doc.date_of_transaction = values["date_of_transaction"]
         doc.insert()
+        # self.append('currently_issued', {
+        #     'article': values['article']
+        # })
+        # self.save()
+
+
         return doc.name

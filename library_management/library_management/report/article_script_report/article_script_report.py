@@ -46,7 +46,7 @@ def get_columns(filters):
             "fieldname": "image",
             "label": "Image",
             "fieldtype": "Data",
-            "width": 150
+            "width": 150x
         },
         {
             "fieldname": "issued_transaction",
