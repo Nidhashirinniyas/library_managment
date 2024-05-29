@@ -1,0 +1,32 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2024-05-24 14:35:50.027853",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "issued_article"
+ ],
+ "fields": [
+  {
+   "fieldname": "issued_article",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Issued Article",
+   "options": "Article"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2024-05-24 14:37:16.270648",
+ "modified_by": "Administrator",
+ "module": "Library Management",
+ "name": "Max Books",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
