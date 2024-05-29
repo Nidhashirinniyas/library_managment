@@ -1,8 +1,27 @@
-// Copyright (c) 2024, nidha and contributors
-// For license information, please see license.txt
+frappe.ui.form.on("Library Transaction", {
+    refresh(frm) {
+        if (frm.doc.type == 'Issued') {
+            frm.set_query('article', () => {
+                return {
+                    filters: {
+                        status: 'Available'
+                    }
+                }
+            })
+        }
 
-// frappe.ui.form.on("Library Transaction", {
-// 	refresh(frm) {
-//
-// 	},
-// });
+        set_member_query(frm);
+
+    },
+
+});
+
+
+
+function set_member_query(frm) {
+  frm.set_query("library_member", () => {
+    return {
+      query: "library_management.library_management.doctype.library_transaction.library_transaction.library_member_query"
+    }
+  })
+}
