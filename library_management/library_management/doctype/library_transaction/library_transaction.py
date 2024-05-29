@@ -15,11 +15,17 @@ class LibraryTransaction(Document):
         elif self.type == "Return":
             self.validate_return()
             self.update_issued_books(add=False)
-            article = frappe.get_doc("Article", self.articles)
-            article.status = "Available"
-            article.save()
+            for row in self.get('articles'):
+                article = frappe.get_doc("Article", row.article)
+                article.status = "Available"
+                article.save()
+
+            self.calc_delay_fine()  # Calculate delay fine during return
+
+
 
     def validate_issue(self):
+        # You can edit the validation logic here
         print("Validating issue...")
         for row in self.get('articles'):
             print("Inside loop")
@@ -32,6 +38,7 @@ class LibraryTransaction(Document):
 
 
     def validate_return(self):
+        # You can edit the validation logic here
         library_member = frappe.get_doc("Library Member", self.library_member)
         current_books = library_member.get("current_book", [])
 
@@ -58,6 +65,7 @@ class LibraryTransaction(Document):
 
 
     def on_cancel(self):
+        # You can edit the cancel logic here
         library_member = frappe.get_doc("Library Member", self.library_member)
         current_books = library_member.get("current_book", [])
 
@@ -100,6 +108,7 @@ class LibraryTransaction(Document):
 
 
     def validate_maximum_limit(self):
+        # You can edit the maximum limit validation logic here
         max_articles = frappe.db.get_single_value("Library Settings", "max_articles")
         library_member = frappe.get_doc("Library Member", self.library_member)
 
@@ -113,6 +122,7 @@ class LibraryTransaction(Document):
             frappe.throw("The total count of issued articles exceeds the maximum limit")
 
     def validate_membership(self):
+        # You can edit the membership validation logic here
         valid_membership = frappe.db.exists(
             "Library Membership",
             {
@@ -127,6 +137,7 @@ class LibraryTransaction(Document):
 
 
     def update_issued_books(self, add):
+        # You can edit the update issued books logic here
         library_member = frappe.get_doc("Library Member", self.library_member)
 
         if add:
@@ -141,7 +152,7 @@ class LibraryTransaction(Document):
                     frappe.throw(f"No available copies of {article.name} to issue")
 
                 # Decrement available copies
-                article.noofcopies -= 1
+                article.noofcopies = int(article.noofcopies) - 1
                 article.save()
 
                 # Add to current_book
@@ -171,6 +182,7 @@ class LibraryTransaction(Document):
 
 
     def before_save(self):
+        # You can edit the before save logic here
         for row in self.finee:
             if self.type == "Return":
                 self.validate_return()
@@ -181,30 +193,59 @@ class LibraryTransaction(Document):
                     self.total_fine = damage_fine
 
     def calc_delay_fine(self):
-        valid_delayfine = frappe.db.exists(
-            "Library Transaction",
-            {
-                "library_member": self.library_member,
-                "article": self.article,
-                "docstatus": 1,
-                "type": "Issue",
-            },
-        )
+        # You can edit the delay fine calculation logic here
+        self.total_fine = 0  # Initialize total fine
 
-        if valid_delayfine:
-            issued_doc = frappe.get_last_doc("Library Transaction", filters={
-                "library_member": self.library_member,
-                "article": self.article,
-                "docstatus": 1,
-                "type": "Issue"
+        for row in self.get('finee'):
+            issued_article = row.article
+
+            # Fetch all issue transactions for this member and type
+            issued_docs = frappe.get_all('Library Transaction', filters={
+                'library_member': self.library_member,
+                'type': 'Issue',
+                'docstatus': 1
             })
-            issued_date = issued_doc.date
 
-            loan_period = frappe.db.get_single_value('Library Settings', 'loan_period')
-            actual_duration = frappe.utils.date_diff(self.date, issued_date)
+            issued_date = None
 
-            if actual_duration > loan_period:
-                single_day_fine = frappe.db.get_single_value('Library Settings', 'single_day_fine')
-                self.delay_fine = single_day_fine * (actual_duration - loan_period)
+            # Check each transaction's articles for the issued_article
+            for doc in issued_docs:
+                transaction = frappe.get_doc('Library Transaction', doc.name)
+                for article_row in transaction.get('articles'):
+                    if article_row.article == issued_article:
+                        issued_date = transaction.date
+                        break
+                if issued_date:
+                    break
+
+            if issued_date:
+                loan_period = frappe.db.get_single_value('Library Settings', 'loan_period')
+                actual_duration = frappe.utils.date_diff(self.date, issued_date)
+
+                if actual_duration > loan_period:
+                    single_day_fine = frappe.db.get_single_value('Library Settings', 'single_day_fine')
+                    delay_days = actual_duration - loan_period
+                    delay_fine = single_day_fine * delay_days
+                else:
+                    delay_fine = 0
+
+                row.delay_fine = delay_fine
             else:
-                self.delay_fine = 0
+                frappe.throw(f"No valid issue record found for article {issued_article} and member {self.library_member}")
+
+            # Calculate the damage fine for the row if available
+            damage_fine = int(row.fine_amount) if row.fine_amount else 0
+
+            # Update the row's total fine
+            row.total_fine = damage_fine + row.delay_fine
+
+            # Sum up the fines to update the total fine for the transaction
+            self.total_fine += row.total_fine
+            
+@frappe.whitelist()
+@frappe.validate_and_sanitize_search_inputs
+def library_member_query(doctype, txt, searchfield, start, page_len, filters):
+
+    active_member_list = frappe.db.get_all("Library Membership", {"docstatus":1}, pluck="library_member")
+
+    return [[member] for member in active_member_list]
